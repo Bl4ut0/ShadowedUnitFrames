@@ -291,6 +291,9 @@ function Highlight:OnEnable(frame)
 
 	if( ShadowUF.db.profile.units[frame.unitType].highlight.aggro ) then
 		frame:RegisterUnitEvent("UNIT_THREAT_SITUATION_UPDATE", self, "UpdateThreat")
+		-- Threat wipes (Vanish, Feign Death, evade) drop the unit off every threat list without a threat event, so we recheck on combat flag changes too
+		frame:RegisterUnitEvent("UNIT_FLAGS", self, "UpdateThreat")
+		frame:RegisterNormalEvent("PLAYER_REGEN_ENABLED", self, "UpdateThreat")
 		frame:RegisterUpdateFunc(self, "UpdateThreat")
 	end
 
