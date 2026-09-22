@@ -7,6 +7,10 @@ ShadowUF = select(2, ...)
 local L = ShadowUF.L
 ShadowUF.dbRevision = 73
 ShadowUF.playerUnit = "player"
+-- Forever reports the Mainline project ID and uses Midnight's restricted UI APIs,
+-- while its class and spell data follow Classic. Detect it by its interface line.
+local interfaceVersion = tonumber(select(4, GetBuildInfo())) or 0
+ShadowUF.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
 ShadowUF.enabledUnits = {}
 ShadowUF.modules = {}
 ShadowUF.moduleOrder = {}
@@ -153,6 +157,14 @@ function ShadowUF.IsUnitIdentitySecret(unit)
 	return ok and secret or false
 end
 
+-- Threat state can become secret in restricted content. Lua cannot compare it,
+-- but the ordinary (readable) value remains useful for color and highlights.
+function ShadowUF.GetReadableThreatSituation(unit)
+	local ok, state = pcall(UnitThreatSituation, unit)
+	if( ok and not (issecretvalue and issecretvalue(state)) ) then return state end
+	return nil
+end
+
 -- Reaction tri-state for the dispel displays, "assist" = can be helped, "attack" = can be harmed, "none" = neither (cross-faction with warmode off, friendly neutrals)
 -- UnitCanAssist/UnitCanAttack are authoritative but can return secret booleans on restricted maps, the reaction pair never does and covers duels (friend AND enemy) as hostile
 function ShadowUF.GetUnitReactionState(unit)
@@ -167,8 +179,10 @@ function ShadowUF.GetUnitReactionState(unit)
 
 	local okFriend, friend = pcall(UnitIsFriend, unit, "player")
 	local okEnemy, enemy = pcall(UnitIsEnemy, unit, "player")
-	local isEnemy = okEnemy and enemy and true or false
-	if( okFriend and friend and not isEnemy ) then return "assist" end
+	if( not okEnemy or (issecretvalue and issecretvalue(enemy)) ) then enemy = false end
+	if( not okFriend or (issecretvalue and issecretvalue(friend)) ) then friend = false end
+	local isEnemy = enemy and true or false
+	if( friend and not isEnemy ) then return "assist" end
 	return isEnemy and "attack" or "none"
 end
 

@@ -262,12 +262,13 @@ function Health:UpdateColor(frame)
 
 	local color
 	local unit = frame.unitSUF
+	local threatState = ShadowUF.GetReadableThreatSituation(unit)
 	local reactionType = ShadowUF.db.profile.units[frame.unitType].healthBar.reactionType
 	if( not UnitIsConnected(unit) ) then
 		frame.healthBar.wasOffline = true
 		frame:SetBarColor("healthBar", ShadowUF.db.profile.healthColors.offline.r, ShadowUF.db.profile.healthColors.offline.g, ShadowUF.db.profile.healthColors.offline.b)
 		return
-	elseif( ShadowUF.db.profile.units[frame.unitType].healthBar.colorAggro and UnitThreatSituation(frame.unitSUF) == 3 ) then
+	elseif( ShadowUF.db.profile.units[frame.unitType].healthBar.colorAggro and threatState == 3 ) then
 		frame:SetBarColor("healthBar", ShadowUF.db.profile.healthColors.aggro.r, ShadowUF.db.profile.healthColors.aggro.g, ShadowUF.db.profile.healthColors.aggro.b)
 		return
 	elseif( frame.inVehicle ) then

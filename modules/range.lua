@@ -56,6 +56,39 @@ local Range = {
 	},
 }
 
+-- Forever exposes the modern range API but uses Classic spell IDs. Keep these
+-- candidates separate so the Retail list continues to work on Midnight.
+local function foreverSpellNames(...)
+	local names = {}
+	for i = 1, select("#", ...) do
+		local name = GetSpellName(select(i, ...))
+		if name then names[#names + 1] = name end
+	end
+	return names
+end
+
+if ShadowUF.isForever then
+	Range.friendly = {
+		PRIEST = foreverSpellNames(17, 527), -- Power Word: Shield, Dispel Magic
+		DRUID = foreverSpellNames(774, 2782), -- Rejuvenation, Remove Curse
+		PALADIN = foreverSpellNames(19750, 4987), -- Flash of Light, Cleanse
+		SHAMAN = foreverSpellNames(331, 526), -- Healing Wave, Cure Poison
+		WARLOCK = foreverSpellNames(5697), -- Unending Breath
+		MAGE = foreverSpellNames(1459, 130), -- Arcane Intellect, Slow Fall
+	}
+	Range.hostile = {
+		DRUID = foreverSpellNames(8921), -- Moonfire
+		HUNTER = foreverSpellNames(3044, 19434), -- Arcane Shot, Aimed Shot
+		MAGE = foreverSpellNames(116, 133), -- Frostbolt, Fireball
+		PALADIN = foreverSpellNames(20271), -- Judgement
+		PRIEST = foreverSpellNames(585), -- Smite
+		ROGUE = foreverSpellNames(1752), -- Sinister Strike
+		SHAMAN = foreverSpellNames(403), -- Lightning Bolt
+		WARLOCK = foreverSpellNames(686), -- Shadow Bolt
+		WARRIOR = foreverSpellNames(355), -- Taunt
+	}
+end
+
 ShadowUF:RegisterModule(Range, "range", ShadowUF.L["Range indicator"])
 
 local LSR = LibStub("SpellRange-1.0")
@@ -104,9 +137,10 @@ local function checkRange(self)
 
     -- Check which spell to use
     local spell
-    if UnitCanAssist("player", frame.unitSUF) then
+    local reaction = ShadowUF.GetUnitReactionState(frame.unitSUF)
+    if reaction == "assist" then
         spell = rangeSpells.friendly
-    elseif UnitCanAttack("player", frame.unitSUF) then
+    elseif reaction == "attack" then
         spell = rangeSpells.hostile
     end
 

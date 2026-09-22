@@ -1760,6 +1760,28 @@ local curableSpells = {
 	["EVOKER"] = {[365585] = {"Poison"}, [360823] = {"Magic", "Poison"}, [374251] = {"Poison", "Curse", "Disease"}}
 }
 
+-- Forever has Midnight's aura restrictions but Classic dispel spell IDs.
+if ShadowUF.isForever then
+	curableSpells = {
+		DRUID = {
+			[2782] = {"Curse"}, [2893] = {"Poison"}, [8946] = {"Poison"},
+		},
+		PRIEST = {
+			[527] = {"Magic"}, [988] = {"Magic"},
+			[528] = {"Disease"}, [552] = {"Disease"},
+		},
+		PALADIN = {
+			[4987] = {"Magic", "Disease", "Poison"},
+			[1152] = {"Disease", "Poison"},
+		},
+		SHAMAN = {
+			[526] = {"Poison"}, [2870] = {"Disease"},
+		},
+		MAGE = {[475] = {"Curse"}},
+		WARLOCK = {[19505] = {"Magic"}}, -- Felhunter Devour Magic
+	}
+end
+
 curableSpells = curableSpells[playerClass]
 
 local function checkCurableSpells()
