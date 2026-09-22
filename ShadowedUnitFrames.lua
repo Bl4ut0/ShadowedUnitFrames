@@ -9,7 +9,8 @@ ShadowUF.dbRevision = 73
 ShadowUF.playerUnit = "player"
 -- Forever reports the Mainline project ID and uses Midnight's restricted UI APIs,
 -- while its class and spell data follow Classic. Detect it by its interface line.
-local interfaceVersion = tonumber(select(4, GetBuildInfo())) or 0
+local _, _, _, interfaceVersion = GetBuildInfo()
+interfaceVersion = tonumber(interfaceVersion) or 0
 ShadowUF.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
 ShadowUF.enabledUnits = {}
 ShadowUF.modules = {}

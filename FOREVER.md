@@ -15,7 +15,7 @@ Test with a clean SUF profile first. Check player and target frames, party and r
 From the repository root, with NoSelph's packaged v4.6.7 ZIP downloaded:
 
 ```powershell
-./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC1.zip
+./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC2.zip
 ```
 
 The script overlays the tracked source from this branch onto NoSelph's library-complete release. The source and options addons are packaged as two top-level directories.
