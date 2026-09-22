@@ -1229,9 +1229,11 @@ end
 local function basicHideBlizzardFrames(...)
 	for i=1, select("#", ...) do
 		local frame = select(i, ...)
-		frame:UnregisterAllEvents()
-		frame:HookScript("OnShow", rehideFrame)
-		frame:Hide()
+		if frame then
+			frame:UnregisterAllEvents()
+			frame:HookScript("OnShow", rehideFrame)
+			frame:Hide()
+		end
 	end
 end
 
@@ -1277,6 +1279,7 @@ end
 local function hideBlizzardFrames(...)
 	for i=1, select("#", ...) do
 		local frame = select(i, ...)
+		if frame then
 		-- Unit watch state lives on a protected manager, always blocked in combat regardless of the frame
 		if( InCombatLockdown() ) then
 			ShadowUF:DeferUntilRegen(frame, function()
@@ -1312,6 +1315,7 @@ local function hideBlizzardFrames(...)
 				end
 			end)
 			hookedFrames[frame] = true
+		end
 		end
 	end
 end
@@ -1446,7 +1450,7 @@ function ShadowUF:HideBlizzardFrames()
 
 		for i=1, MAX_BOSS_FRAMES do
 			local name = "Boss" .. i .. "TargetFrame"
-			if _G[name].TargetFrameContent then
+			if _G[name] and _G[name].TargetFrameContent then
 				if _G[name].TargetFrameContent.TargetFrameContentMain.HealthBarsContainer then
 					hideBlizzardFrames(_G[name], _G[name].TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar, _G[name].TargetFrameContent.TargetFrameContentMain.ManaBar)
 				else

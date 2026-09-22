@@ -33,16 +33,20 @@ ShadowUF:RegisterModule(Units, "units")
 local petBattleFrame = CreateFrame("Frame", "SUFWrapperFrame", UIParent, "SecureHandlerBaseTemplate")
 petBattleFrame:SetFrameStrata("BACKGROUND")
 petBattleFrame:SetAllPoints(UIParent)
-petBattleFrame:WrapScript(petBattleFrame, "OnAttributeChanged", [[
-	if( name ~= "state-petbattle" ) then return end
-	if( value == "active" ) then
-		self:Hide()
-	else
-		self:Show()
-	end
-]])
-
-RegisterStateDriver(petBattleFrame, "petbattle", "[petbattle] active; none")
+-- Forever's restricted environment cannot compile this retail-only pet-battle
+-- state handler (its loadstring_untainted upvalue is nil). Keep the wrapper
+-- visible there; pet battles are not part of the Forever unit-frame port.
+if not ShadowUF.isForever then
+	petBattleFrame:WrapScript(petBattleFrame, "OnAttributeChanged", [[
+		if( name ~= "state-petbattle" ) then return end
+		if( value == "active" ) then
+			self:Hide()
+		else
+			self:Show()
+		end
+	]])
+	RegisterStateDriver(petBattleFrame, "petbattle", "[petbattle] active; none")
+end
 
 -- Frame shown, do a full update
 local function FullUpdate(self)
