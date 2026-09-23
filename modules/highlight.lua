@@ -393,7 +393,7 @@ function Highlight:Update(frame)
 end
 
 function Highlight:UpdateThreat(frame)
-	frame.highlight.hasThreat = UnitThreatSituation(frame.unitSUF) == 3 or nil
+	frame.highlight.hasThreat = ShadowUF.GetReadableThreatSituation(frame.unitSUF) == 3 or nil
 	self:Update(frame)
 end
 

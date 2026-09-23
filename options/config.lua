@@ -99,6 +99,10 @@ local unitCategories = {
 	arena = {"arena", "arenapet", "arenatarget", "arenatargettarget"},
 	battleground = {"battleground", "battlegroundpet", "battlegroundtarget", "battlegroundtargettarget"}
 }
+if( ShadowUF.isForever ) then
+	unitCategories.arena = nil
+	unitCategories.battleground = nil
+end
 
 local UNIT_DESC = {
 	["boss"] = L["Boss units are for only certain fights, such as Blood Princes or the Gunship battle, you will not see them for every boss fight."],
@@ -167,7 +171,7 @@ local function getAnchorParents(info)
 	-- Don't let a frame anchor to a frame thats anchored to it already (Stop infinite loops-o-doom)
 	local currentName = getFrameName(unit)
 	for _, unitID in pairs(ShadowUF.unitList) do
-		if( unitID ~= unit and ShadowUF.db.profile.positions[unitID] and ShadowUF.db.profile.positions[unitID].anchorTo ~= currentName ) then
+		if( ShadowUF:IsFeatureSupported("units", unitID) and unitID ~= unit and ShadowUF.db.profile.positions[unitID] and ShadowUF.db.profile.positions[unitID].anchorTo ~= currentName ) then
 			anchorList[getFrameName(unitID)] = string.format(L["%s frames"], L.units[unitID] or unitID)
 		end
 	end
@@ -196,6 +200,7 @@ end
 
 local function isUnitDisabled(info)
 	local unit = info[#(info)]
+	if( not ShadowUF:IsFeatureSupported("units", unit) ) then return true end
 	local enabled = ShadowUF.db.profile.units[unit].enabled
 	for _, visibility in pairs(ShadowUF.db.profile.visibility) do
 		if( visibility[unit] ) then
@@ -377,6 +382,8 @@ end
 local function hideRestrictedOption(info)
 	local unit = type(info.arg) == "number" and info[#(info) - info.arg] or info[2]
 	local key = info[#(info)]
+	if( not ShadowUF:IsFeatureSupported("modules", key) or
+		(info[#(info) - 1] == "indicators" and not ShadowUF:IsFeatureSupported("indicators", key)) ) then return true end
 	if( ShadowUF.modules[key] and ShadowUF.modules[key].moduleClass and ShadowUF.modules[key].moduleClass ~= playerClass ) then
 		return true
 	elseif( ( key == "incHeal" and not ShadowUF.modules.incHeal ) or ( key == "incAbsorb" and not ShadowUF.modules.incAbsorb ) or ( key == "healAbsorb" and not ShadowUF.modules.healAbsorb ) )  then
@@ -2216,7 +2223,7 @@ local function loadGeneralOptions()
 	end
 
 	options.args.general.args.color.args.classColors.args.PET = Config.classTable
-	options.args.general.args.color.args.classColors.args.VEHICLE = Config.classTable
+	if( ShadowUF.supportsVehicles ) then options.args.general.args.color.args.classColors.args.VEHICLE = Config.classTable end
 end
 
 ---------------------
@@ -2266,7 +2273,7 @@ local function loadHideOptions()
 				args = {
 					buffs = Config.hideTable,
 					cast = Config.hideTable,
-					playerPower = Config.hideTable,
+					playerPower = not ShadowUF.isForever and Config.hideTable or nil,
 					party = Config.hideTable,
                     raid = Config.hideTable,
 					player = Config.hideTable,
@@ -2274,8 +2281,8 @@ local function loadHideOptions()
 					target = Config.hideTable,
 					focus = Config.hideTable,
 					boss = Config.hideTable,
-					arena = Config.hideTable,
-					playerAltPower = Config.hideTable,
+					arena = not ShadowUF.isForever and Config.hideTable or nil,
+					playerAltPower = not ShadowUF.isForever and Config.hideTable or nil,
 				},
 			},
 		}
@@ -4288,7 +4295,7 @@ local function loadUnitOptions()
 						type = "group",
 						inline = true,
 						name = L["Vehicles"],
-						hidden = function(info) return info[2] ~= "player" and info[2] ~= "party" or not ShadowUF.db.profile.advanced end,
+						hidden = function(info) return not ShadowUF.supportsVehicles or info[2] ~= "player" and info[2] ~= "party" or not ShadowUF.db.profile.advanced end,
 						args = {
 							disable = {
 								order = 0,
@@ -4517,7 +4524,7 @@ local function loadUnitOptions()
 						type = "group",
 						inline = true,
 						name = L["Soul Shards"],
-						hidden = function(info) return playerClass ~= "WARLOCK" or not getVariable(info[2], "soulShards", nil, "isBar") or not getVariable(info[2], nil, nil, "soulShards") end,
+						hidden = function(info) return ShadowUF.isForever or playerClass ~= "WARLOCK" or not getVariable(info[2], "soulShards", nil, "isBar") or not getVariable(info[2], nil, nil, "soulShards") end,
 						args = {
 							enabled = {
 								order = 1,
@@ -4627,7 +4634,7 @@ local function loadUnitOptions()
 						type = "group",
 						inline = true,
 						name = L["Arcane Charges"],
-						hidden = function(info) return playerClass ~= "MAGE" or not getVariable(info[2], "arcaneCharges", nil, "isBar") or not getVariable(info[2], nil, nil, "arcaneCharges") end,
+						hidden = function(info) return ShadowUF.isForever or playerClass ~= "MAGE" or not getVariable(info[2], "arcaneCharges", nil, "isBar") or not getVariable(info[2], nil, nil, "arcaneCharges") end,
 						args = {
 							enabled = {
 								order = 1,
@@ -4737,7 +4744,7 @@ local function loadUnitOptions()
 						type = "group",
 						inline = true,
 						name = L["Holy Power"],
-						hidden = function(info) return playerClass ~= "PALADIN" or not getVariable(info[2], "holyPower", nil, "isBar") or not getVariable(info[2], nil, nil, "holyPower") end,
+						hidden = function(info) return ShadowUF.isForever or playerClass ~= "PALADIN" or not getVariable(info[2], "holyPower", nil, "isBar") or not getVariable(info[2], nil, nil, "holyPower") end,
 						args = {
 							enabled = {
 								order = 1,
@@ -4957,7 +4964,7 @@ local function loadUnitOptions()
 						type = "group",
 						inline = true,
 						name = L["Chi"],
-						hidden = function(info) return playerClass ~= "MONK" or not getVariable(info[2], "chi", nil, "isBar") or not getVariable(info[2], nil, nil, "chi") end,
+						hidden = function(info) return ShadowUF.isForever or playerClass ~= "MONK" or not getVariable(info[2], "chi", nil, "isBar") or not getVariable(info[2], nil, nil, "chi") end,
 						args = {
 							enabled = {
 								order = 1,
@@ -5825,7 +5832,7 @@ local function loadUnitOptions()
 								type = "toggle",
 								name = string.format(L["Enable %s"], L["Alt. Power bar"]),
 								desc = L["Shows a bar for alternate power info (used in some encounters)"],
-								hidden = function(info) return ShadowUF.fakeUnits[info[2]] or hideRestrictedOption(info) end,
+								hidden = function(info) return not ShadowUF:IsFeatureSupported("modules", "altPowerBar") or ShadowUF.fakeUnits[info[2]] or hideRestrictedOption(info) end,
 								arg = "altPowerBar.enabled",
 							},
 							colorType = {
@@ -6620,7 +6627,9 @@ local function loadUnitOptions()
 	}
 
 	for _, indicator in pairs(ShadowUF.modules.indicators.list) do
-		Config.unitTable.args.indicators.args[indicator] = Config.indicatorTable
+		if( ShadowUF:IsFeatureSupported("indicators", indicator) ) then
+			Config.unitTable.args.indicators.args[indicator] = Config.indicatorTable
+		end
 	end
 
 	-- Check for unit conflicts
@@ -6785,7 +6794,7 @@ local function loadUnitOptions()
 						set = function(info, value)
 							if( IsShiftKeyDown() ) then
 								for _, unit in pairs(ShadowUF.unitList) do
-									if( ShadowUF.db.profile.units[unit].enabled ) then
+									if( ShadowUF:IsFeatureSupported("units", unit) and ShadowUF.db.profile.units[unit].enabled ) then
 										modifyUnits[unit] = value and true or nil
 
 										if( value ) then
@@ -6962,11 +6971,13 @@ local function loadUnitOptions()
 	end
 
 	for order, unit in pairs(ShadowUF.unitList) do
-		options.args.enableUnits.args.enabled.args[unit] = enabledUnits
-		options.args.units.args.global.args.units.args.units.args[unit] = perUnitList
-		options.args.units.args[unit] = Config.unitTable
+		if( ShadowUF:IsFeatureSupported("units", unit) ) then
+			options.args.enableUnits.args.enabled.args[unit] = enabledUnits
+			options.args.units.args.global.args.units.args.units.args[unit] = perUnitList
+			options.args.units.args[unit] = Config.unitTable
 
-		unitCatOrder[unit] = unitCatOrder[unit] or 100
+			unitCatOrder[unit] = unitCatOrder[unit] or 100
+		end
 	end
 end
 
@@ -7033,7 +7044,7 @@ local function loadFilterOptions()
 	end
 
 	local globalSettings = {}
-	local zoneList = {"none", "pvp", "arena", "party", "raid"}
+	local zoneList = ShadowUF.isForever and {"none", "pvp", "party", "raid"} or {"none", "pvp", "arena", "party", "raid"}
 	local filterTable = {
 		order = function(info) return info[#(info)] == "global" and 1 or info[#(info)] == "none" and 2 or 3 end,
 		type = "group",
@@ -7181,7 +7192,7 @@ local function loadFilterOptions()
 			global = filterTable,
 			none = filterTable,
 			pvp = filterTable,
-			arena = filterTable,
+			arena = not ShadowUF.isForever and filterTable or nil,
 			party = filterTable,
 			raid = filterTable,
 		}
@@ -7243,7 +7254,9 @@ local function loadFilterOptions()
 
 	options.args.filter.args.groups.args.global = unitFilterSelection
 	for _, unit in pairs(ShadowUF.unitList) do
-		options.args.filter.args.groups.args[unit] = unitFilterSelection
+		if( ShadowUF:IsFeatureSupported("units", unit) ) then
+			options.args.filter.args.groups.args[unit] = unitFilterSelection
+		end
 	end
 
 	rebuildFilters()
@@ -8173,7 +8186,7 @@ local function loadVisibilityOptions()
 
 	areaTable.args.global = Config.visibilityTable
 	for _, unit in pairs(ShadowUF.unitList) do
-		if( not unitBlacklist[unit] ) then
+		if( not unitBlacklist[unit] and ShadowUF:IsFeatureSupported("units", unit) ) then
 			areaTable.args[unit] = Config.visibilityTable
 		end
 	end
@@ -8199,7 +8212,7 @@ local function loadVisibilityOptions()
 				},
 			},
 			pvp = areaTable,
-			arena = areaTable,
+			arena = not ShadowUF.isForever and areaTable or nil,
 			party = areaTable,
 			raid = areaTable,
 			neighborhood = areaTable,
@@ -8874,7 +8887,7 @@ local function loadAuraIndicatorsOptions()
 	local function getEnabledUnits()
 		table.wipe(enabledUnits)
 		for unit, config in pairs(ShadowUF.db.profile.units) do
-			if( config.enabled and config.auraIndicators and config.auraIndicators.enabled ) then
+			if( ShadowUF:IsFeatureSupported("units", unit) and config.enabled and config.auraIndicators and config.auraIndicators.enabled ) then
 				enabledUnits[unit] = L.units[unit]
 			end
 		end
@@ -9394,7 +9407,7 @@ local function loadAuraIndicatorsOptions()
 
 		-- Aura status by unit; compound unit tokens have no auraIndicators table (the aura APIs reject them)
 		for unit, config in pairs(ShadowUF.db.profile.units) do
-			if( config.auraIndicators ) then
+			if( ShadowUF:IsFeatureSupported("units", unit) and config.auraIndicators ) then
 				options.args.auraIndicators.args.units.args[unit] = unitTable
 			end
 		end

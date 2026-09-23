@@ -132,7 +132,7 @@ function Cast:OnEnable(frame)
 	
 	-- 12.0 Empowered Casts
 	-- Treating them as channels (complex Start/Update/Stop flow)
-	if( UnitEmpoweredChannelDuration ) then
+	if( not ShadowUF.isForever and UnitEmpoweredChannelDuration ) then
 		frame:RegisterUnitEvent("UNIT_SPELLCAST_EMPOWER_START", self, "EventUpdateChannel")
 		frame:RegisterUnitEvent("UNIT_SPELLCAST_EMPOWER_STOP", self, "EventStopCast")
 		frame:RegisterUnitEvent("UNIT_SPELLCAST_EMPOWER_UPDATE", self, "EventDelayChannel")

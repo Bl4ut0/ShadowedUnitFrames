@@ -7,6 +7,25 @@ ShadowUF = select(2, ...)
 local L = ShadowUF.L
 ShadowUF.dbRevision = 73
 ShadowUF.playerUnit = "player"
+-- Forever reports the Mainline project ID and uses Midnight's restricted UI APIs,
+-- while its class and spell data follow Classic. Detect it by its interface line.
+local _, _, _, interfaceVersion = GetBuildInfo()
+interfaceVersion = tonumber(interfaceVersion) or 0
+ShadowUF.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
+-- Forever uses the modern UI API but not these Retail game systems. Keep their
+-- saved settings and Retail implementations intact; do not activate them here.
+ShadowUF.foreverUnsupported = {
+	units = {arena = true, arenapet = true, arenatarget = true, arenatargettarget = true,
+		battleground = true, battlegroundpet = true, battlegroundtarget = true, battlegroundtargettarget = true},
+	modules = {altPowerBar = true, arcaneCharges = true, chi = true, essence = true,
+		holyPower = true, priestBar = true, runeBar = true, shamanBar = true,
+		soulShards = true, staggerBar = true},
+	indicators = {arenaSpec = true, lfdRole = true, petBattle = true, phase = true, questBoss = true},
+}
+function ShadowUF:IsFeatureSupported(kind, key)
+	return not (self.isForever and self.foreverUnsupported[kind][key])
+end
+ShadowUF.supportsVehicles = not ShadowUF.isForever
 ShadowUF.enabledUnits = {}
 ShadowUF.modules = {}
 ShadowUF.moduleOrder = {}
@@ -153,6 +172,14 @@ function ShadowUF.IsUnitIdentitySecret(unit)
 	return ok and secret or false
 end
 
+-- Threat state can become secret in restricted content. Lua cannot compare it,
+-- but the ordinary (readable) value remains useful for color and highlights.
+function ShadowUF.GetReadableThreatSituation(unit)
+	local ok, state = pcall(UnitThreatSituation, unit)
+	if( ok and not (issecretvalue and issecretvalue(state)) ) then return state end
+	return nil
+end
+
 -- Reaction tri-state for the dispel displays, "assist" = can be helped, "attack" = can be harmed, "none" = neither (cross-faction with warmode off, friendly neutrals)
 -- UnitCanAssist/UnitCanAttack are authoritative but can return secret booleans on restricted maps, the reaction pair never does and covers duels (friend AND enemy) as hostile
 function ShadowUF.GetUnitReactionState(unit)
@@ -167,8 +194,10 @@ function ShadowUF.GetUnitReactionState(unit)
 
 	local okFriend, friend = pcall(UnitIsFriend, unit, "player")
 	local okEnemy, enemy = pcall(UnitIsEnemy, unit, "player")
-	local isEnemy = okEnemy and enemy and true or false
-	if( okFriend and friend and not isEnemy ) then return "assist" end
+	if( not okEnemy or (issecretvalue and issecretvalue(enemy)) ) then enemy = false end
+	if( not okFriend or (issecretvalue and issecretvalue(friend)) ) then friend = false end
+	local isEnemy = enemy and true or false
+	if( friend and not isEnemy ) then return "assist" end
 	return isEnemy and "attack" or "none"
 end
 
@@ -739,7 +768,7 @@ end
 
 function ShadowUF:LoadUnits()
 	-- CanHearthAndResurrectFromArea() returns true for world pvp areas, according to BattlefieldFrame.lua
-	local instanceType = CanHearthAndResurrectFromArea() and "pvp" or select(2, IsInInstance())
+	local instanceType = (not self.isForever and CanHearthAndResurrectFromArea and CanHearthAndResurrectFromArea()) and "pvp" or select(2, IsInInstance())
 	if( instanceType == "scenario" ) then instanceType = "party" end
 	if( instanceType == "interior" ) then instanceType = "neighborhood" end
 
@@ -757,6 +786,8 @@ function ShadowUF:LoadUnits()
 			end
 		end
 
+		-- An imported Retail profile may override visibility; the client gate wins.
+		enabled = enabled and self:IsFeatureSupported("units", type)
 		self.enabledUnits[type] = enabled
 
 		if( enabled ) then
@@ -1056,6 +1087,7 @@ end
 
 -- Module APIs
 function ShadowUF:RegisterModule(module, key, name, isBar, class, spec, level)
+	if( not self:IsFeatureSupported("modules", key) ) then return end
 	-- Prevent duplicate registration for deprecated plugin
 	if( key == "auraIndicators" and C_AddOns.IsAddOnLoaded("ShadowedUF_Indicators") and self.modules.auraIndicators ) then
 		self:Print(L["WARNING! ShadowedUF_Indicators has been deprecated as v4 and is now built in. Please delete ShadowedUF_Indicators, your configuration will be saved."])
@@ -1214,9 +1246,11 @@ end
 local function basicHideBlizzardFrames(...)
 	for i=1, select("#", ...) do
 		local frame = select(i, ...)
-		frame:UnregisterAllEvents()
-		frame:HookScript("OnShow", rehideFrame)
-		frame:Hide()
+		if frame then
+			frame:UnregisterAllEvents()
+			frame:HookScript("OnShow", rehideFrame)
+			frame:Hide()
+		end
 	end
 end
 
@@ -1262,6 +1296,7 @@ end
 local function hideBlizzardFrames(...)
 	for i=1, select("#", ...) do
 		local frame = select(i, ...)
+		if frame then
 		-- Unit watch state lives on a protected manager, always blocked in combat regardless of the frame
 		if( InCombatLockdown() ) then
 			ShadowUF:DeferUntilRegen(frame, function()
@@ -1298,6 +1333,7 @@ local function hideBlizzardFrames(...)
 			end)
 			hookedFrames[frame] = true
 		end
+		end
 	end
 end
 
@@ -1323,7 +1359,7 @@ function ShadowUF:HideBlizzardFrames()
 	end
 
 	if( self.db.profile.hidden.party and not active_hiddens.party ) then
-		if( PartyFrame ) then
+		if( PartyFrame and PartyFrame.PartyMemberFramePool ) then
 			hideBlizzardFrames(PartyFrame)
 			for memberFrame in PartyFrame.PartyMemberFramePool:EnumerateActive() do
 				if memberFrame.HealthBarContainer and memberFrame.HealthBarContainer.HealthBar then
@@ -1334,6 +1370,7 @@ function ShadowUF:HideBlizzardFrames()
 			end
 			PartyFrame.PartyMemberFramePool:ReleaseAll()
 		else
+			hideBlizzardFrames(PartyFrame)
 			for i=1, MAX_PARTY_MEMBERS do
 				local name = "PartyMemberFrame" .. i
 				hideBlizzardFrames(_G[name], _G[name .. "HealthBar"], _G[name .. "ManaBar"])
@@ -1349,7 +1386,7 @@ function ShadowUF:HideBlizzardFrames()
 		end
 	end
 
-	if( CompactRaidFrameManager ) then
+	if( CompactRaidFrameManager and CompactRaidFrameContainer ) then
 		if( self.db.profile.hidden.raid and not active_hiddens.raidTriggered ) then
 			active_hiddens.raidTriggered = true
 
@@ -1364,17 +1401,21 @@ function ShadowUF:HideBlizzardFrames()
 				CompactRaidFrameManager:Hide()
 				-- The global roster dispatcher re-shows the manager mid-combat where we can't touch it, a hidden parent keeps that from ever being visible
 				CompactRaidFrameManager:SetParent(ShadowUF.hiddenFrame)
-				local shown = CompactRaidFrameManager_GetSetting("IsShown")
-				if( shown and shown ~= "0" ) then
-					CompactRaidFrameManager_SetSetting("IsShown", "0")
+				if( CompactRaidFrameManager_GetSetting and CompactRaidFrameManager_SetSetting ) then
+					local shown = CompactRaidFrameManager_GetSetting("IsShown")
+					if( shown and shown ~= "0" ) then
+						CompactRaidFrameManager_SetSetting("IsShown", "0")
+					end
 				end
 			end
 
-			hooksecurefunc("CompactRaidFrameManager_UpdateShown", function()
-				if( self.db.profile.hidden.raid ) then
-					hideRaid()
-				end
-			end)
+			if( CompactRaidFrameManager_UpdateShown ) then
+				hooksecurefunc("CompactRaidFrameManager_UpdateShown", function()
+					if( self.db.profile.hidden.raid ) then
+						hideRaid()
+					end
+				end)
+			end
 
 			hideRaid()
 			CompactRaidFrameContainer:HookScript("OnShow", hideRaid)
@@ -1390,17 +1431,21 @@ function ShadowUF:HideBlizzardFrames()
 		hideBlizzardFrames(PlayerFrame, AlternatePowerBar)
 
 		-- We keep these in case someone is still using the default auras, otherwise it messes up vehicle stuff
-		PlayerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-		PlayerFrame:RegisterEvent("UNIT_ENTERING_VEHICLE")
-		PlayerFrame:RegisterEvent("UNIT_ENTERED_VEHICLE")
-		PlayerFrame:RegisterEvent("UNIT_EXITING_VEHICLE")
-		PlayerFrame:RegisterEvent("UNIT_EXITED_VEHICLE")
-		PlayerFrame:SetMovable(true)
-		PlayerFrame:SetUserPlaced(true)
-		PlayerFrame:SetDontSavePosition(true)
+		if( PlayerFrame ) then
+			if( self.supportsVehicles ) then
+				PlayerFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+				PlayerFrame:RegisterEvent("UNIT_ENTERING_VEHICLE")
+				PlayerFrame:RegisterEvent("UNIT_ENTERED_VEHICLE")
+				PlayerFrame:RegisterEvent("UNIT_EXITING_VEHICLE")
+				PlayerFrame:RegisterEvent("UNIT_EXITED_VEHICLE")
+			end
+			PlayerFrame:SetMovable(true)
+			PlayerFrame:SetUserPlaced(true)
+			PlayerFrame:SetDontSavePosition(true)
+		end
 	end
 
-	if( self.db.profile.hidden.playerPower and not active_hiddens.playerPower ) then
+	if( not self.isForever and self.db.profile.hidden.playerPower and not active_hiddens.playerPower ) then
 		basicHideBlizzardFrames(RuneFrame, WarlockPowerFrame, MonkHarmonyBarFrame, PaladinPowerBarFrame, MageArcaneChargesFrame, EssencePlayerFrame)
 	end
 
@@ -1431,19 +1476,18 @@ function ShadowUF:HideBlizzardFrames()
 
 		for i=1, MAX_BOSS_FRAMES do
 			local name = "Boss" .. i .. "TargetFrame"
-			if _G[name].TargetFrameContent then
-				if _G[name].TargetFrameContent.TargetFrameContentMain.HealthBarsContainer then
-					hideBlizzardFrames(_G[name], _G[name].TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar, _G[name].TargetFrameContent.TargetFrameContentMain.ManaBar)
-				else
-					hideBlizzardFrames(_G[name], _G[name].TargetFrameContent.TargetFrameContentMain.HealthBar, _G[name].TargetFrameContent.TargetFrameContentMain.ManaBar)
-				end
+			local bossFrame = _G[name]
+			local content = bossFrame and bossFrame.TargetFrameContent and bossFrame.TargetFrameContent.TargetFrameContentMain
+			if( content ) then
+				local health = content.HealthBarsContainer and content.HealthBarsContainer.HealthBar or content.HealthBar
+				hideBlizzardFrames(bossFrame, health, content.ManaBar)
 			else
-				hideBlizzardFrames(_G[name], _G[name .. "HealthBar"], _G[name .. "ManaBar"])
+				hideBlizzardFrames(bossFrame, _G[name .. "HealthBar"], _G[name .. "ManaBar"])
 			end
 		end
 	end
 
-	if( self.db.profile.hidden.arena and not active_hiddens.arenaTriggered ) then
+	if( not self.isForever and self.db.profile.hidden.arena and not active_hiddens.arenaTriggered ) then
 		active_hiddens.arenaTriggered = true
 
 		-- Hide CompactArenaFrame if it already exists (e.g. /reload inside arena)
@@ -1462,7 +1506,7 @@ function ShadowUF:HideBlizzardFrames()
 		end
 	end
 
-	if( self.db.profile.hidden.playerAltPower and not active_hiddens.playerAltPower ) then
+	if( not self.isForever and self.db.profile.hidden.playerAltPower and not active_hiddens.playerAltPower ) then
 		hideBlizzardFrames(PlayerPowerBarAlt)
 	end
 
