@@ -166,7 +166,7 @@ function Indicators:OnEnable(frame)
 	-- UNIT_FACTION re-runs the slot mute gate when reaction flips without a unit change (mind control, duels)
 	frame:RegisterUnitEvent("UNIT_FACTION", self, "UpdateAuras")
 	-- Instance and phase transitions move units in and out of the area of interest
-	frame:RegisterUnitEvent("UNIT_PHASE", self, "UpdateAuras")
+	if( not ShadowUF.isForever ) then frame:RegisterUnitEvent("UNIT_PHASE", self, "UpdateAuras") end
 	frame:RegisterUnitEvent("UNIT_CONNECTION", self, "UpdateAuras")
 	frame:RegisterUpdateFunc(self, "UpdateAuras")
 end

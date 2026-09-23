@@ -176,7 +176,7 @@ function Auras:OnEnable(frame)
 	-- Reaction flips re-gate the dispel-based debuff sections without a unit change
 	frame:RegisterUnitEvent("UNIT_FACTION", self, "Update")
 	-- Instance and phase transitions move units in and out of the area of interest
-	frame:RegisterUnitEvent("UNIT_PHASE", self, "Update")
+	if( not ShadowUF.isForever ) then frame:RegisterUnitEvent("UNIT_PHASE", self, "Update") end
 	frame:RegisterUnitEvent("UNIT_CONNECTION", self, "Update")
 	frame:RegisterUnitEvent("UNIT_AURA", self, "CheckUnitReachable")
 	frame:RegisterUpdateFunc(self, "Update")

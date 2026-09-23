@@ -1,6 +1,6 @@
 local GetSpellName = C_Spell.GetSpellName
 local IsSpellUsable = C_Spell.IsSpellUsable
-local Range = {
+local Range = ShadowUF.isForever and {friendly = {}, hostile = {}} or {
 	friendly = {
 		["PRIEST"] = {
 			(GetSpellName(17)), -- Power Word: Shield
@@ -98,6 +98,7 @@ local rangeSpells = {}
 
 local UnitPhaseReason_o = UnitPhaseReason
 local UnitPhaseReason = function(unit)
+	if( ShadowUF.isForever or not UnitPhaseReason_o ) then return nil end
 	local phase = UnitPhaseReason_o(unit)
 	-- Secret when the unit's identity is secret, comparing would error
 	if( issecretvalue and issecretvalue(phase) ) then return nil end
@@ -271,7 +272,7 @@ function Range:OnEnable(frame)
 		frame.range = CreateFrame("Frame", nil, frame)
 	end
 
-	frame:RegisterNormalEvent("PLAYER_SPECIALIZATION_CHANGED", self, "SpellChecks")
+	frame:RegisterNormalEvent(ShadowUF.isForever and "SPELLS_CHANGED" or "PLAYER_SPECIALIZATION_CHANGED", self, "SpellChecks")
 	frame:RegisterUpdateFunc(self, "ForceUpdate")
 
 	createTimer(frame)

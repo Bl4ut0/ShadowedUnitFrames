@@ -1049,6 +1049,7 @@ Tags.defaultTags = {
 		return points and points > 0 and points
 	end]],
 	["cpoints"] = [[function(unit, unitOwner)
+		if( ShadowUF.isForever ) then return GetComboPoints("player", "target") end
 		if( UnitHasVehicleUI("player") and UnitHasVehiclePlayerFrameUI("player") ) then
 			local points = GetComboPoints("vehicle")
 			if( not issecretvalue(points) and points == 0 ) then
@@ -1331,6 +1332,14 @@ Tags.defaultTags = {
 	end]],
 	]==]--
 }
+
+-- Retail resource tags do not have matching powers on Forever. Existing saved
+-- strings can still mention them; the tag cache treats unknown tags as empty.
+if( ShadowUF.isForever ) then
+	for _, key in ipairs({"sshards", "hpower", "monk:chipoints", "monk:stagger", "monk:abs:stagger", "rune:timer"}) do
+		Tags.defaultTags[key] = nil
+	end
+end
 
 -- Default tag events
 Tags.defaultEvents = {

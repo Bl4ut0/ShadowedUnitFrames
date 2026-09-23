@@ -570,7 +570,7 @@ function Movers:Enable()
 		seenHeader[key] = true
 	end
 	for type in pairs(ShadowUF.Units.zoneUnits) do
-		if( ShadowUF.db.profile.units[type].enabled and not seenHeader[type] ) then
+		if( ShadowUF:IsFeatureSupported("units", type) and ShadowUF.db.profile.units[type].enabled and not seenHeader[type] ) then
 			headerKeys[#headerKeys + 1] = type
 			seenHeader[type] = true
 		end
@@ -869,7 +869,7 @@ local function createTestConfigEnv()
 end
 
 function Movers:EnableTestMode(unitType)
-	if( self.isEnabled ) then return end
+	if( self.isEnabled or not ShadowUF:IsFeatureSupported("units", unitType) ) then return end
 
 	self.testModeUnits[unitType] = true
 	armTestLock()

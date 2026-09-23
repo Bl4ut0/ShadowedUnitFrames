@@ -282,16 +282,23 @@ function Layout:AnchorFrame(parent, frame, config)
 	end
 
 	local anchorTo = config.anchorTo
-	local prefix = string.sub(config.anchorTo, 0, 1)
-	if( config.anchorTo == "$parent" ) then
+	if( ShadowUF.isForever ) then
+		local unit = string.match(anchorTo, "^#SUFUnit(%w+)$") or string.match(anchorTo, "^#SUFHeader(%w+)$")
+		if( unit and not ShadowUF:IsFeatureSupported("units", unit) ) then
+			-- Keep the imported position intact so Retail can still use its anchor.
+			anchorTo = "UIParent"
+		end
+	end
+	local prefix = string.sub(anchorTo, 0, 1)
+	if( anchorTo == "$parent" ) then
 		anchorTo = parent
 	-- $ is used as an indicator of a sub-frame inside a parent, $healthBar -> parent.healthBar and so on
 	elseif( prefix == "$" ) then
-		anchorTo = parent[string.sub(config.anchorTo, 2)]
+		anchorTo = parent[string.sub(anchorTo, 2)]
 	-- # is used as an indicator of an actual frame created by SUF, it lets us know that the frame might not be created yet
 	-- and if so, to watch for it to be created and fix the anchoring
 	elseif( prefix == "#" ) then
-		anchorTo = string.sub(config.anchorTo, 2)
+		anchorTo = string.sub(anchorTo, 2)
 
 		-- The frame we wanted to anchor to doesn't exist yet, so will queue and wait for it to exist
 		if( not _G[anchorTo] ) then
@@ -318,7 +325,7 @@ function Layout:AnchorFrame(parent, frame, config)
 	-- Figure out where it's anchored, screen anchors resolve smart codes to the matching inside edge
 	local point = config.point and config.point ~= "" and config.point
 	local relativePoint = config.relativePoint and config.relativePoint ~= "" and config.relativePoint
-	if( config.anchorTo == "UIParent" and uiParentPoint[config.anchorPoint] ) then
+	if( anchorTo == "UIParent" and uiParentPoint[config.anchorPoint] ) then
 		point = point or uiParentPoint[config.anchorPoint]
 		relativePoint = relativePoint or uiParentPoint[config.anchorPoint]
 	end
@@ -327,7 +334,7 @@ function Layout:AnchorFrame(parent, frame, config)
 
 	-- Effective scaling is only used for unit based frames and if they are anchored to UIParent
 	local scale = 1
-	if( config.anchorTo == "UIParent" and frame.unitType ) then
+	if( anchorTo == "UIParent" and frame.unitType ) then
 		scale = frame:GetScale() * UIParent:GetScale()
 	end
 

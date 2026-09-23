@@ -431,6 +431,7 @@ end
 
 -- Check if a unit entered a vehicle
 function Units:CheckVehicleStatus(frame, event, unit)
+	if( not ShadowUF.supportsVehicles ) then return end
 	if( event and frame.unitOwner ~= unit ) then return end
 
 	-- Not in a vehicle yet, and they entered one that has a UI or they were in a vehicle but the GUID changed (vehicle -> vehicle)
@@ -626,14 +627,14 @@ OnAttributeChanged = function(self, name, unit)
 	end
 
 	-- Handles switching the internal unit variable to that of their vehicle
-	if( self.unitSUF == "player" or self.unitRealType == "party" or self.unitRealType == "raid" ) then
+	if( ShadowUF.supportsVehicles and (self.unitSUF == "player" or self.unitRealType == "party" or self.unitRealType == "raid") ) then
 		self:RegisterNormalEvent("UNIT_ENTERED_VEHICLE", Units, "CheckVehicleStatus")
 		self:RegisterNormalEvent("UNIT_EXITED_VEHICLE", Units, "CheckVehicleStatus")
 		self:RegisterUpdateFunc(Units, "CheckVehicleStatus")
 	end
 
 	-- Phase change, do a full update on it
-	self:RegisterUnitEvent("UNIT_PHASE", self, "FullUpdate")
+	if( not ShadowUF.isForever ) then self:RegisterUnitEvent("UNIT_PHASE", self, "FullUpdate") end
 
 	-- Pet changed, going from pet -> vehicle for one
 	if( self.unitSUF == "pet" or self.unitType == "partypet" ) then
@@ -648,7 +649,7 @@ OnAttributeChanged = function(self, name, unit)
 		end
 
 		-- Vehicle handling needs a resolvable owner, leftover ghost pets from the party placeholder slot have none
-		if( self.unitRealOwner ) then
+		if( ShadowUF.supportsVehicles and self.unitRealOwner ) then
 			-- Logged out in a vehicle
 			if( UnitHasVehicleUI(self.unitRealOwner) and UnitHasVehiclePlayerFrameUI(self.unitRealOwner) ) then
 				self:SetAttribute("unitIsVehicle", true)
@@ -786,7 +787,10 @@ local secureInitializeUnit = [[
 	end
 ]]
 
-local unitButtonTemplate = ClickCastHeader and ("ClickCastUnitTemplate,SUF_SecureUnitTemplate,PingableUnitFrameTemplate,BackdropTemplate") or ("SUF_SecureUnitTemplate,PingableUnitFrameTemplate,BackdropTemplate")
+-- The SUF template only adds Retail vehicle state drivers. Forever uses the
+-- stock secure button, leaving party and raid group headers in place.
+local unitButtonBaseTemplate = ShadowUF.supportsVehicles and "SUF_SecureUnitTemplate" or "SecureUnitButtonTemplate"
+local unitButtonTemplate = (ClickCastHeader and "ClickCastUnitTemplate," or "") .. unitButtonBaseTemplate .. ",PingableUnitFrameTemplate,BackdropTemplate"
 
 -- Header unit initialized
 local function initializeUnit(header, frameName)
@@ -1510,6 +1514,7 @@ end
 
 -- Initialize units
 function Units:InitializeFrame(type)
+	if( not ShadowUF:IsFeatureSupported("units", type) ) then return end
 	if( type == "raid" and ShadowUF.db.profile.units[type].frameSplit ) then
 		self:LoadSplitGroupHeader(type)
 	elseif( type == "party" or type == "raid" or type == "maintank" or type == "mainassist" or type == "raidpet" ) then
@@ -1638,6 +1643,7 @@ end
 
 -- Handle showing for the arena prep frames
 function Units:InitializeArena()
+	if( ShadowUF.isForever ) then return end
 	if( not headerFrames.arena or InCombatLockdown() ) then return end
 
 	-- Clear all arena frame GUIDs and icon textures to prevent stale data from previous match
@@ -1730,7 +1736,7 @@ function Units:CheckPlayerZone(force)
 	end
 
 	-- CanHearthAndResurrectFromArea() returns true for world pvp areas, according to BattlefieldFrame.lua
-	local instance = CanHearthAndResurrectFromArea() and "pvp" or select(2, IsInInstance()) or "none"
+	local instance = (not ShadowUF.isForever and CanHearthAndResurrectFromArea and CanHearthAndResurrectFromArea()) and "pvp" or select(2, IsInInstance()) or "none"
 	if( instance == "scenario" ) then instance = "party" end
 	if( instance == "interior" ) then instance = "neighborhood" end
 
@@ -1813,8 +1819,10 @@ centralFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 centralFrame:RegisterEvent("PLAYER_LOGIN")
 centralFrame:RegisterEvent("PLAYER_LEVEL_UP")
 centralFrame:RegisterEvent("CINEMATIC_STOP")
-centralFrame:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
-centralFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+if( not ShadowUF.isForever ) then
+	centralFrame:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
+	centralFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+end
 centralFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 centralFrame:SetScript("OnEvent", function(self, event, unit, ...)
 	-- Check if the player changed zone types and we need to change module status, while they are dead
@@ -1877,7 +1885,7 @@ centralFrame:SetScript("OnEvent", function(self, event, unit, ...)
 		end
 
 	-- Monitor talent changes for curable changes
-	elseif( event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" or event == "TRAIT_CONFIG_UPDATED") then
+	elseif( event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" or event == "TRAIT_CONFIG_UPDATED" or event == "SPELLS_CHANGED") then
 		checkCurableSpells()
 
 		for frame in pairs(ShadowUF.Units.frameList) do
@@ -1892,8 +1900,12 @@ centralFrame:SetScript("OnEvent", function(self, event, unit, ...)
 
 	elseif( event == "PLAYER_LOGIN" ) then
 		checkCurableSpells()
-		self:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player", nil)
-		self:RegisterEvent("TRAIT_CONFIG_UPDATED")
+		if( ShadowUF.isForever ) then
+			self:RegisterEvent("SPELLS_CHANGED")
+		else
+			self:RegisterUnitEvent("PLAYER_SPECIALIZATION_CHANGED", "player", nil)
+			self:RegisterEvent("TRAIT_CONFIG_UPDATED")
+		end
 		if( playerClass == "WARLOCK" ) then
 			self:RegisterUnitEvent("UNIT_PET", "player", nil)
 		end

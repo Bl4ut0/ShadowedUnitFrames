@@ -62,6 +62,10 @@ end
 function Indicators:SummonPending(frame)
 	if( not frame.indicators.sumPending or not frame.indicators.sumPending.enabled ) then return end
 
+	if( not (C_IncomingSummon and C_IncomingSummon.HasIncomingSummon and C_IncomingSummon.IncomingSummonStatus) ) then
+		frame.indicators.sumPending:Hide()
+		return
+	end
 	local status = C_IncomingSummon.HasIncomingSummon(frame.unitSUF) and C_IncomingSummon.IncomingSummonStatus(frame.unitSUF)
 	if( status == 1 ) then
 		frame.indicators.sumPending:SetAtlas("RaidFrame-Icon-SummonPending")
@@ -82,14 +86,18 @@ function Indicators:UpdateMasterLoot(frame)
 	if( not frame.indicators.masterLoot or not frame.indicators.masterLoot.enabled ) then return end
 
 	local masterLoot, partyID, raidID
-	if C_PartyInfo and C_PartyInfo.GetLootMethod then
-		local lootType
-		lootType, partyID, raidID = C_PartyInfo.GetLootMethod()
-		masterLoot = (lootType == Enum.LootMethod.Masterlooter)
-	else
+	if( ShadowUF.isForever and GetLootMethod ) then
 		local lootType
 		lootType, partyID, raidID = GetLootMethod()
-		masterLoot = (lootType == "master")
+		masterLoot = lootType == "master"
+	elseif( C_PartyInfo and C_PartyInfo.GetLootMethod and Enum.LootMethod ) then
+		local lootType
+		lootType, partyID, raidID = C_PartyInfo.GetLootMethod()
+		masterLoot = lootType == Enum.LootMethod.Masterlooter
+	elseif( GetLootMethod ) then
+		local lootType
+		lootType, partyID, raidID = GetLootMethod()
+		masterLoot = lootType == "master"
 	end
 	if( not masterLoot ) then
 		frame.indicators.masterLoot:Hide()
@@ -165,8 +173,8 @@ end
 function Indicators:UpdateLeader(frame)
 	if( not frame.indicators.leader or not frame.indicators.leader.enabled ) then return end
 
-	if( secretToNil(UnitIsGroupLeader(frame.unitSUF)) or (frame.unitSUF == "target" and secretToNil(UnitLeadsAnyGroup(frame.unitSUF))) ) then
-		if( HasLFGRestrictions() ) then
+	if( secretToNil(UnitIsGroupLeader(frame.unitSUF)) or (frame.unitSUF == "target" and UnitLeadsAnyGroup and secretToNil(UnitLeadsAnyGroup(frame.unitSUF))) ) then
+		if( HasLFGRestrictions and HasLFGRestrictions() ) then
 			frame.indicators.leader:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
 			frame.indicators.leader:SetTexCoord(0, 0.296875, 0.015625, 0.3125)
 		else
@@ -176,7 +184,7 @@ function Indicators:UpdateLeader(frame)
 
 		frame.indicators.leader:Show()
 
-	elseif( secretToNil(UnitIsGroupAssistant(frame.unitSUF)) or ( secretToNil(UnitInRaid(frame.unitSUF)) and IsEveryoneAssistant() ) ) then
+	elseif( secretToNil(UnitIsGroupAssistant(frame.unitSUF)) or ( secretToNil(UnitInRaid(frame.unitSUF)) and IsEveryoneAssistant and IsEveryoneAssistant() ) ) then
 		frame.indicators.leader:SetTexture("Interface\\GroupFrame\\UI-Group-AssistantIcon")
 		frame.indicators.leader:SetTexCoord(0, 1, 0, 1)
 		frame.indicators.leader:Show()
@@ -388,13 +396,13 @@ function Indicators:OnEnable(frame)
 		unregisterCombatMonitor(frame)
 	end
 
-	if( config.indicators.arenaSpec and config.indicators.arenaSpec.enabled ) then
+	if( ShadowUF:IsFeatureSupported("indicators", "arenaSpec") and config.indicators.arenaSpec and config.indicators.arenaSpec.enabled ) then
 		frame:RegisterNormalEvent("ARENA_OPPONENT_UPDATE", self, "UpdateArenaSpec")
 		frame:RegisterUpdateFunc(self, "UpdateArenaSpec")
         frame.indicators.arenaSpec = frame.indicators.arenaSpec or frame.indicators:CreateTexture(nil, "OVERLAY")
 	end
 
-	if( config.indicators.phase and config.indicators.phase.enabled ) then
+	if( ShadowUF:IsFeatureSupported("indicators", "phase") and config.indicators.phase and config.indicators.phase.enabled ) then
 		-- Player phase changes do not generate a phase change event. This seems to be the best
 		-- TODO: what event does fire here? frame:RegisterNormalEvent("UPDATE_WORLD_STATES", self, "UpdatePhase")
         frame:RegisterUpdateFunc(self, "UpdatePhase")
@@ -410,7 +418,7 @@ function Indicators:OnEnable(frame)
 	    frame.indicators.resurrect:SetTexture("Interface\\RaidFrame\\Raid-Icon-Rez")
 	end
 
-	if( config.indicators.sumPending and config.indicators.sumPending.enabled ) then
+	if( C_IncomingSummon and C_IncomingSummon.HasIncomingSummon and C_IncomingSummon.IncomingSummonStatus and config.indicators.sumPending and config.indicators.sumPending.enabled ) then
 		frame:RegisterNormalEvent("INCOMING_SUMMON_CHANGED", self, "SummonPending")
 		frame:RegisterUpdateFunc(self, "SummonPending")
 
@@ -468,7 +476,7 @@ function Indicators:OnEnable(frame)
 		frame.indicators.ready = frame.indicators.ready or frame.indicators:CreateTexture(nil, "OVERLAY")
 	end
 
-	if( config.indicators.lfdRole and config.indicators.lfdRole.enabled ) then
+	if( ShadowUF:IsFeatureSupported("indicators", "lfdRole") and config.indicators.lfdRole and config.indicators.lfdRole.enabled ) then
 		frame:RegisterNormalEvent("PLAYER_ROLES_ASSIGNED", self, "UpdateLFDRole")
 		frame:RegisterUpdateFunc(self, "UpdateLFDRole")
 
@@ -476,7 +484,7 @@ function Indicators:OnEnable(frame)
 		frame.indicators.lfdRole:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
 	end
 
-	if( config.indicators.questBoss and config.indicators.questBoss.enabled ) then
+	if( ShadowUF:IsFeatureSupported("indicators", "questBoss") and config.indicators.questBoss and config.indicators.questBoss.enabled ) then
 		frame:RegisterUnitEvent("UNIT_CLASSIFICATION_CHANGED", self, "UpdateQuestBoss")
 		frame:RegisterUpdateFunc(self, "UpdateQuestBoss")
 
@@ -484,7 +492,7 @@ function Indicators:OnEnable(frame)
 		frame.indicators.questBoss:SetTexture("Interface\\TargetingFrame\\PortraitQuestBadge")
 	end
 
-	if( config.indicators.petBattle and config.indicators.petBattle.enabled ) then
+	if( ShadowUF:IsFeatureSupported("indicators", "petBattle") and config.indicators.petBattle and config.indicators.petBattle.enabled ) then
 		frame:RegisterUpdateFunc(self, "UpdatePetBattle")
 		frame.indicators.petBattle = frame.indicators.petBattle or frame.indicators:CreateTexture(nil, "OVERLAY")
 	end
