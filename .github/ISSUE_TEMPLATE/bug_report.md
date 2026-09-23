@@ -1,39 +1,46 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: "[Bug] Brief description of the issue"
+name: WoW Forever bug report
+about: Report a problem with the WoW Forever release candidate
+title: "[Forever RC6] Brief description"
 labels: ''
-assignees: NoSelph
-
+assignees: ''
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Version and setup
 
-**Lua error**
-Please paste the associated Lua error if you had one.
+- SUF release candidate: (fill in)
+- WoW Forever build/interface number: (fill in)
+- Class: (fill in)
+- Content type (solo, party, raid, battleground, etc.): (fill in)
+- Other enabled addons: (fill in)
+- Does it happen with a clean SUF profile? (yes/no)
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## What happened?
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+Describe the problem and the unit frame involved.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## Steps to reproduce
 
-**WoW information (please complete the following information):**
- - Version: [e.g. Retail, Classic]
- - Class [e.g. Druid, Mage]
- - Shadowed Unit Frames Version [e.g. 4.4.19]
- - Type of content [e.g. M+, Delves, Raid]
+1. (first action)
+2. (next action)
+3. (observed result)
 
-**Addons (please complete the following information):**
- - List of addons that were enabled when the bug occurred: [e.g. Bartender, Quartz]
+## Expected behavior
 
-**Additional context**
-Add any other context about the problem here.
+Describe what you expected to happen.
+
+## Lua error
+
+Paste the **full error and stack** here, including the timestamp and addon file/line if available. If there is no Lua error, write "None".
+
+```text
+Paste error here
+```
+
+## Screenshots or recording
+
+Attach images or a short recording if this is a layout or visibility issue.
+
+## Additional context
+
+Mention whether the issue began after installing RC6, whether /reload changes it, and any relevant configuration or imported profile.

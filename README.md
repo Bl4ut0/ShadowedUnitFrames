@@ -1,0 +1,51 @@
+# Shadowed Unit Frames for WoW Forever
+
+An unofficial fork of [NoSelph's Shadowed Unit Frames](https://github.com/NoSelph/ShadowedUnitFrames), adapted from v4.6.7 for the WoW Forever 1.60 client. **RC6 is a test candidate** for interface 16001. Retail behavior and saved profile settings remain in the code.
+
+## Download and install RC6
+
+Download [v4.6.7-Forever-RC6.zip](https://github.com/Bl4ut0/ShadowedUnitFrames/releases/download/v4.6.7-Forever-RC6/v4.6.7-Forever-RC6.zip) from the [RC6 release](https://github.com/Bl4ut0/ShadowedUnitFrames/releases/tag/v4.6.7-Forever-RC6). Extract both top-level folders, ShadowedUnitFrames and ShadowedUF_Options, into the Forever client's Interface/AddOns directory. Remove or replace older copies of those folders, then restart the client or use /reload.
+
+**Use the attached ZIP.** GitHub's automatically generated Source code ZIP does not include the bundled libraries needed by the addon.
+
+ZIP SHA256: `9f40dfa6044d02cf6cb451f9db6644ec7d0c9d5e3f66b48a1cc42c4e7e633086`
+
+## What changed through RC6
+
+| Area | Forever behavior |
+| --- | --- |
+| Client detection | Detects Forever by its 16xxx interface version and adds 16001 to both addon TOCs. |
+| Classic gameplay data | Uses Classic spell candidates for range checks, Classic combo points, and compatible dispel and master-loot information. |
+| Restricted values | Avoids Lua comparisons of secret threat, unit, and reaction values. A threat indicator may be hidden when its value is secret. |
+| Blizzard UI differences | Tolerates Blizzard frames missing from Forever and avoids Retail specialization calls that fail on this client. |
+| Group and boss frames | RC6 avoids addon secure snippets that Forever cannot compile. Blizzard's stock group headers create party, raid, and raid-pet buttons; SUF initializes them afterward. Party and raid use direct visibility drivers, and boss buttons use stock unit watches. |
+| Profiles and options | Unsupported controls are hidden on Forever. Imported Retail profiles cannot reactivate unsupported units; anchors to those units fall back to the screen without rewriting saved positions. |
+| Retail | The original Retail implementations and saved settings remain available when running on Retail. |
+
+The RC6 group-header change addresses the reported `RestrictedExecution.lua:79` error reached while creating the party header. See [technical notes](FOREVER.md) for more detail.
+
+## Features currently disabled on Forever
+
+These are compatibility gates in this fork. They do not establish that Forever has no equivalent game mechanic.
+
+- SUF's dedicated arena and battleground **opponent** frames, including their pet, target, and target-of-target variants. Normal player, target, party, and raid frames remain available in PvP.
+- Vehicle unit swapping and pet-battle frame behavior.
+- Retail resource widgets: alternate encounter power, arcane charges, chi, essence, holy power, priest/shaman secondary mana, DK runes, soul shards, and stagger. Classic combo points, shaman totems, and the druid mana bar remain.
+- Arena spec, dungeon role, phase/other-party, quest-boss, and pet-battle indicators. Common indicators such as raid target, ready status, class, and leader remain.
+- Empowered-cast events and six matching Retail resource tags. Ordinary cast bars and other tags remain.
+
+The largest possible omissions for users are the dedicated PvP opponent frames and alternate encounter power bar. If Forever uses a corresponding system, it needs a separate compatibility check before that SUF feature is enabled.
+
+## RC6 test status
+
+The addon Lua parses and the release ZIP was checked against the installed files. Party and raid formation, raid pets, boss visibility, custom click-casts, and combat transitions still need in-game validation. On Forever, group buttons use SUF's normal click-cast registration instead of its restricted header snippet. Boss header dimensions may update after combat when boss visibility changes during combat.
+
+## Report a bug
+
+[Open a WoW Forever bug report](https://github.com/Bl4ut0/ShadowedUnitFrames/issues/new?template=bug_report.md) in **this fork's GitHub Issues**. You can also [browse existing reports](https://github.com/Bl4ut0/ShadowedUnitFrames/issues) before filing a duplicate.
+
+Include the RC version, Forever build/interface number, the full Lua error and stack if present, steps to reproduce, the unit frame and content type involved, your class, whether it happens with a clean SUF profile, and other enabled addons. Screenshots or a short recording help with layout problems. Please report Forever-specific problems here rather than on the original project's issue tracker.
+
+## Source and attribution
+
+This is an unofficial Forever port of [NoSelph's SUF project](https://github.com/NoSelph/ShadowedUnitFrames). The compatibility code is proposed in [upstream draft PR #151](https://github.com/NoSelph/ShadowedUnitFrames/pull/151). This fork's release README, issue template, technical notes, and packaging script live on the fork-only release branch.

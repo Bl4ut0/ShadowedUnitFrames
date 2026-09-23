@@ -27,7 +27,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Could not list the tracked addon source files.' }
 
     foreach ($relative in $trackedFiles) {
-        if ($relative -match '^(\.github/|scripts/|\.)' -or $relative -eq 'FOREVER.md') { continue }
+        if ($relative -match '^(\.github/|scripts/|\.)' -or $relative -eq 'FOREVER.md' -or $relative -eq 'README.md') { continue }
         $source = Join-Path $repoRoot ($relative.Replace('/', '\'))
         if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { continue }
 
