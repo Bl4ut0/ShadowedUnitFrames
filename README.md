@@ -10,7 +10,20 @@ Download [v4.6.7-Forever-RC6.zip](https://github.com/Bl4ut0/ShadowedUnitFrames/r
 
 ZIP SHA256: `9f40dfa6044d02cf6cb451f9db6644ec7d0c9d5e3f66b48a1cc42c4e7e633086`
 
-## What changed through RC6
+## Cumulative candidate history
+
+**RC6 is cumulative.** It is built from NoSelph's packaged v4.6.7 release and includes every Forever change introduced from RC1 through RC6. Install RC6 by itself; you do not need to install earlier candidates first. RC3 and RC4 were intermediate revisions folded into later packages, so they do not have separate GitHub release pages.
+
+| Candidate | Change carried forward into RC6 |
+| --- | --- |
+| RC1 | Initial Forever interface support, Classic range and dispel spell candidates, and protection from restricted threat values. |
+| RC2 | Corrected build detection so the addon finishes startup instead of passing multiple GetBuildInfo results to tonumber. |
+| RC3 | Disabled the incompatible pet-battle secure state driver and guarded Blizzard unit frames absent from Forever. |
+| RC4 | Avoided the Retail specialization API that fails on Forever. |
+| RC5 | Gated unsupported Retail frames, modules, indicators, and options; added Classic combo-point and master-loot handling; kept imported Retail profiles from re-enabling unsupported frames. |
+| RC6 | Removed the remaining Forever paths into SUF's custom secure snippets for party, raid, raid-pet, and boss frames while retaining those frames and Retail implementations. |
+
+## What changed from upstream v4.6.7
 
 | Area | Forever behavior |
 | --- | --- |
