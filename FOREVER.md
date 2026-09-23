@@ -10,7 +10,7 @@ The 16xxx client gate disables Retail arena and battleground-opponent unit frame
 
 The gate applies when frames and modules are registered, when units are loaded, and in unlock/test mode. Imported Retail profiles cannot reactivate unsupported frames through zone visibility settings. Anchors pointing at those frames resolve to the screen on Forever without changing their saved positions. The options pages omit unsupported controls.
 
-The prior loadstring_untainted error came from the pet-battle state driver and that driver is disabled on Forever. Party and raid headers still use secure group code; test those in game because their behavior cannot be verified by source inspection alone.
+Forever's restricted executor cannot compile addon secure snippets. The port leaves the stock group-header engine in place, initializes party, raid, and raid-pet children after Blizzard creates them, and uses direct visibility drivers for party and raid headers. Boss frames use stock unit watches. Retail retains the original secure snippets. Test group formation, raid layout changes, boss visibility, clicks, and combat transitions in game because client behavior cannot be verified by source inspection alone.
 
 ## Install for testing
 
@@ -23,7 +23,7 @@ Test with a clean SUF profile first. Check player and target frames, party and r
 From the repository root, with NoSelph's packaged v4.6.7 ZIP downloaded:
 
 ```powershell
-./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC5.zip
+./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC6.zip
 ```
 
 The script overlays the tracked source from this branch onto NoSelph's library-complete release. The source and options addons are packaged as two top-level directories.

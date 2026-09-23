@@ -790,7 +790,9 @@ local secureInitializeUnit = [[
 -- The SUF template only adds Retail vehicle state drivers. Forever uses the
 -- stock secure button, leaving party and raid group headers in place.
 local unitButtonBaseTemplate = ShadowUF.supportsVehicles and "SUF_SecureUnitTemplate" or "SecureUnitButtonTemplate"
-local unitButtonTemplate = (ClickCastHeader and "ClickCastUnitTemplate," or "") .. unitButtonBaseTemplate .. ",PingableUnitFrameTemplate,BackdropTemplate"
+-- Forever does not run the secure click-cast registration snippet. Its group
+-- children use the normal ClickCastFrames registration path instead.
+local unitButtonTemplate = ((ClickCastHeader and not ShadowUF.isForever) and "ClickCastUnitTemplate," or "") .. unitButtonBaseTemplate .. ",PingableUnitFrameTemplate,BackdropTemplate"
 
 -- Header unit initialized
 local function initializeUnit(header, frameName)
@@ -800,6 +802,81 @@ local function initializeUnit(header, frameName)
 	frame.unitType = header.unitType
 
 	Units:CreateUnit(frame)
+end
+
+-- Forever's restricted executor has no loadstring_untainted. Stock group
+-- headers work without initialConfigFunction, so configure their children
+-- after Blizzard creates them rather than compiling a secure snippet.
+local function initializeForeverHeaderChildren(header)
+	if( not ShadowUF.isForever or not header.isSUFGroupHeader or InCombatLockdown() ) then return end
+
+	local created, index = false, 1
+	while( header:GetAttribute("child" .. index) ) do
+		local frame = header:GetAttribute("child" .. index)
+		if( not frame.fullUpdates ) then
+			frame:SetHeight(header:GetAttribute("style-height"))
+			frame:SetWidth(header:GetAttribute("style-width"))
+			frame:SetScale(header:GetAttribute("style-scale"))
+			initializeUnit(header, frame:GetName())
+			OnAttributeChanged(frame, "unit", frame:GetAttribute("unit"))
+			created = true
+		end
+		index = index + 1
+	end
+
+	-- The first stock update measured new children before SUF sized them.
+	-- Run it once more so column positions and header bounds use those sizes.
+	if( created ) then
+		if( header.unitType == "raidpet" ) then
+			SecureGroupPetHeader_Update(header)
+		else
+			SecureGroupHeader_Update(header)
+		end
+	end
+end
+
+if( ShadowUF.isForever ) then
+	local updatingForeverHeader = false
+	local function afterForeverHeaderUpdate(header)
+		if( updatingForeverHeader ) then return end
+		updatingForeverHeader = true
+		initializeForeverHeaderChildren(header)
+		updatingForeverHeader = false
+	end
+	hooksecurefunc("SecureGroupHeader_Update", afterForeverHeaderUpdate)
+	hooksecurefunc("SecureGroupPetHeader_Update", afterForeverHeaderUpdate)
+end
+
+-- A direct visibility driver uses Blizzard's Show/Hide path; it does not
+-- compile an addon snippet. Keep it attached only while a header is enabled.
+local function setForeverHeaderVisibility(header)
+	if( not ShadowUF.isForever or not header or not header.isSUFGroupHeader or not ShadowUF.enabledUnits[header.unitType] ) then return end
+	if( header.unitType == "raid" and ((header.splitParent and not ShadowUF.db.profile.units.raid.frameSplit) or (not header.splitParent and ShadowUF.db.profile.units.raid.frameSplit)) ) then return end
+
+	local config = ShadowUF.db.profile.units[header.unitType]
+	local driver
+	if( header.unitType == "party" ) then
+		if( config.hideAnyRaid ) then
+			driver = "[target=raid1, exists] hide; show"
+		elseif( config.hideSemiRaid ) then
+			driver = "[target=raid6, exists] hide; show"
+		end
+	elseif( header.unitType == "raid" and config.hideSemiRaid ) then
+		driver = "[target=raid6, exists] show; hide"
+	end
+
+	if( header.foreverVisibilityDriver ~= driver ) then
+		if( header.foreverVisibilityDriver ) then UnregisterStateDriver(header, "visibility") end
+		header.foreverVisibilityDriver = driver
+		if( driver ) then RegisterStateDriver(header, "visibility", driver) end
+	end
+	if( not driver ) then header:Show() end
+end
+
+local function disableForeverHeaderVisibility(header)
+	if( not ShadowUF.isForever or not header or not header.foreverVisibilityDriver ) then return end
+	UnregisterStateDriver(header, "visibility")
+	header.foreverVisibilityDriver = nil
 end
 
 -- Show tooltip
@@ -944,8 +1021,30 @@ function Units:ReloadHeader(type)
 	elseif( headerFrames[type] ) then
 		self:SetHeaderAttributes(headerFrames[type], type)
 		ShadowUF.Layout:AnchorFrame(UIParent, headerFrames[type], ShadowUF.db.profile.positions[type])
+		setForeverHeaderVisibility(headerFrames[type])
 		ShadowUF:FireModuleEvent("OnLayoutReload", type)
 	end
+end
+
+function Units:UpdateForeverZoneHeaderSize(frame)
+	if( not ShadowUF.isForever or InCombatLockdown() or not frame.children ) then return end
+	local visible = 0
+	for _, child in pairs(frame.children) do
+		if( child:IsShown() ) then visible = visible + 1 end
+	end
+	if( visible == 0 ) then
+		frame:SetSize(0.1, 0.1)
+		return
+	end
+
+	local child = frame.children[1]
+	local xMod = math.abs(frame:GetAttribute("xMod") or 0)
+	local yMod = math.abs(frame:GetAttribute("yMod") or 0)
+	local offset = frame:GetAttribute("baseOffset") or 0
+	frame:SetSize(
+		xMod * ((child:GetWidth() + offset) * (visible - 1)) + child:GetWidth(),
+		yMod * ((child:GetHeight() + offset) * (visible - 1)) + child:GetHeight()
+	)
 end
 
 function Units:PositionHeaderChildren(frame)
@@ -981,6 +1080,11 @@ function Units:CheckGroupVisibility()
 	if( raid and party ) then
 		raid:SetAttribute("showParty", not party:GetAttribute("showParty"))
 		raid:SetAttribute("showPlayer", party:GetAttribute("showPlayer"))
+	end
+
+	if( ShadowUF.isForever ) then
+		setForeverHeaderVisibility(party)
+		setForeverHeaderVisibility(raid)
 	end
 end
 
@@ -1096,6 +1200,7 @@ function Units:SetHeaderAttributes(frame, type)
 		frame:SetAttribute("childChanged", 1)
 
 		self:PositionHeaderChildren(frame)
+		if( ShadowUF.isForever ) then self:UpdateForeverZoneHeaderSize(frame) end
 
 	-- Update party frames to not show anyone if they should be in raids
 	elseif( type == "party" ) then
@@ -1159,7 +1264,7 @@ function Units:LoadUnit(unit)
 end
 
 local function setupRaidStateMonitor(id, headerFrame)
-	if( stateMonitor.raids[id] ) then return end
+	if( ShadowUF.isForever or stateMonitor.raids[id] ) then return end
 
 	stateMonitor.raids[id] = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
 	stateMonitor.raids[id]:SetAttribute("raidDisabled", nil)
@@ -1187,7 +1292,10 @@ local function setupRaidStateMonitor(id, headerFrame)
 end
 
 function Units:LoadSplitGroupHeader(type)
-	if( headerFrames.raid ) then headerFrames.raid:Hide() end
+	if( headerFrames.raid ) then
+		disableForeverHeaderVisibility(headerFrames.raid)
+		headerFrames.raid:Hide()
+	end
 	headerFrames.raidParent = nil
 
 	for id, monitor in pairs(stateMonitor.raids) do
@@ -1206,8 +1314,11 @@ function Units:LoadSplitGroupHeader(type)
 				frame:SetAttribute("initial-unitWatch", true)
 				frame:SetAttribute("showRaid", true)
 				frame:SetAttribute("groupFilter", id)
-				frame:SetAttribute("initialConfigFunction", secureInitializeUnit)
-				frame.initialConfigFunction = initializeUnit
+				if( not ShadowUF.isForever ) then
+					frame:SetAttribute("initialConfigFunction", secureInitializeUnit)
+					frame.initialConfigFunction = initializeUnit
+				end
+				frame.isSUFGroupHeader = true
 				frame.isHeaderFrame = true
 				frame.unitType = type
 				frame.unitMappedType = type
@@ -1221,7 +1332,7 @@ function Units:LoadSplitGroupHeader(type)
 				frame:SetAttribute("style-width", config.width)
 				frame:SetAttribute("style-scale", config.scale)
 
-				if( ClickCastHeader ) then
+				if( ClickCastHeader and not ShadowUF.isForever ) then
 					-- the OnLoad adds the functions like SetFrameRef to the header
 					SecureHandler_OnLoad(frame)
 					frame:SetFrameRef("clickcast_header", ClickCastHeader)
@@ -1230,7 +1341,11 @@ function Units:LoadSplitGroupHeader(type)
 				headerFrames["raid" .. id] = frame
 			end
 
-			frame:Show()
+			if( ShadowUF.isForever ) then
+				setForeverHeaderVisibility(frame)
+			else
+				frame:Show()
+			end
 
 			if( not headerFrames.raidParent or headerFrames.raidParent.groupID > id ) then
 				headerFrames.raidParent = frame
@@ -1239,6 +1354,7 @@ function Units:LoadSplitGroupHeader(type)
 			setupRaidStateMonitor(id, frame)
 
 		elseif( frame ) then
+			disableForeverHeaderVisibility(frame)
 			frame:Hide()
 		end
 	end
@@ -1253,7 +1369,11 @@ end
 function Units:LoadGroupHeader(type)
 	-- Already created, so just reshow and we out
 	if( headerFrames[type] ) then
-		headerFrames[type]:Show()
+		if( ShadowUF.isForever ) then
+			setForeverHeaderVisibility(headerFrames[type])
+		else
+			headerFrames[type]:Show()
+		end
 
 		if( type == "party" and stateMonitor.party ) then
 			stateMonitor.party:SetAttribute("partyDisabled", nil)
@@ -1263,6 +1383,15 @@ function Units:LoadGroupHeader(type)
 			for id, monitor in pairs(stateMonitor.raids) do
 				monitor:SetAttribute("hideSemiRaid", ShadowUF.db.profile.units.raid.hideSemiRaid)
 				monitor:SetAttribute("raidDisabled", id >= 0 and true or nil)
+			end
+			if( ShadowUF.isForever ) then
+				for _, header in pairs(headerFrames) do
+					if( header.splitParent == "raid" ) then
+						disableForeverHeaderVisibility(header)
+						header:Hide()
+					end
+				end
+				headerFrames.raidParent = nil
 			end
 		end
 
@@ -1279,9 +1408,11 @@ function Units:LoadGroupHeader(type)
 
 	headerFrame:SetAttribute("template", unitButtonTemplate)
 	headerFrame:SetAttribute("initial-unitWatch", true)
-	headerFrame:SetAttribute("initialConfigFunction", secureInitializeUnit)
-
-	headerFrame.initialConfigFunction = initializeUnit
+	if( not ShadowUF.isForever ) then
+		headerFrame:SetAttribute("initialConfigFunction", secureInitializeUnit)
+		headerFrame.initialConfigFunction = initializeUnit
+	end
+	headerFrame.isSUFGroupHeader = true
 	headerFrame.isHeaderFrame = true
 	headerFrame.unitType = type
 	headerFrame.unitMappedType = type
@@ -1296,7 +1427,7 @@ function Units:LoadGroupHeader(type)
 		headerFrame:SetAttribute("filterOnPet", true)
 	end
 
-	if( ClickCastHeader ) then
+	if( ClickCastHeader and not ShadowUF.isForever ) then
 		-- the OnLoad adds the functions like SetFrameRef to the header
 		SecureHandler_OnLoad(headerFrame)
 		headerFrame:SetFrameRef("clickcast_header", ClickCastHeader)
@@ -1304,11 +1435,13 @@ function Units:LoadGroupHeader(type)
 
 	ShadowUF.Layout:AnchorFrame(UIParent, headerFrame, ShadowUF.db.profile.positions[type])
 
-	-- We have to do party hiding based off raid as a state driver so that we can smoothly hide the party frames based off of combat and such
-	-- technically this isn't the cleanest solution because party frames will still have unit watches active
-	-- but this isn't as big of a deal, because SUF automatically will unregister the OnEvent for party frames while hidden
+	-- Hide party/raid group headers according to roster size. Forever uses
+	-- Blizzard's direct visibility driver; Retail keeps the custom monitors.
 	if( type == "party" ) then
-		stateMonitor.party = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
+		if( ShadowUF.isForever ) then
+			setForeverHeaderVisibility(headerFrame)
+		else
+			stateMonitor.party = CreateFrame("Frame", nil, nil, "SecureHandlerBaseTemplate")
 		stateMonitor.party:SetAttribute("partyDisabled", nil)
 		stateMonitor.party:SetFrameRef("partyHeader", headerFrame)
 		stateMonitor.party:SetAttribute("hideSemiRaid", ShadowUF.db.profile.units.party.hideSemiRaid)
@@ -1326,9 +1459,14 @@ function Units:LoadGroupHeader(type)
 			end
 		]])
 		RegisterStateDriver(stateMonitor.party, "raidmonitor", "[target=raid6, exists] raid6; [target=raid1, exists] raid1; none")
+		end
 
 	elseif( type == "raid" ) then
-		setupRaidStateMonitor(-1, headerFrame)
+		if( ShadowUF.isForever ) then
+			setForeverHeaderVisibility(headerFrame)
+		else
+			setupRaidStateMonitor(-1, headerFrame)
+		end
 	else
 		headerFrame:Show()
 	end
@@ -1337,9 +1475,11 @@ function Units:LoadGroupHeader(type)
 	if( headerFrames.raidParent ) then
 		for _, f in pairs(headerFrames) do
 			if( f.splitParent == type ) then
+				disableForeverHeaderVisibility(f)
 				f:Hide()
 			end
 		end
+		if( ShadowUF.isForever and type == "raid" ) then headerFrames.raidParent = nil end
 	end
 end
 
@@ -1381,7 +1521,7 @@ function Units:LoadZoneHeader(type)
 	for id, unit in pairs(ShadowUF[type .. "Units"]) do
 		local frame = self:CreateUnit("Button", "SUFHeader" .. type .. "UnitButton" .. id, headerFrame, "SecureUnitButtonTemplate,PingableUnitFrameTemplate,BackdropTemplate")
 		frame.ignoreAnchor = true
-		frame.hasStateWatch = true
+		frame.hasStateWatch = not ShadowUF.isForever
 		frame.unitUnmapped = type .. id
 		frame:SetAttribute("unit", unit)
 		frame:SetAttribute("unitID", id)
@@ -1394,7 +1534,10 @@ function Units:LoadZoneHeader(type)
 
 		-- Arena frames are only allowed to be shown not hidden from the unit existing, or else when a Rogue
 		-- stealths the frame will hide which looks bad. Instead force it to stay open and it has to be manually hidden when the player leaves an arena.
-		if( type == "arena" ) then
+		if( ShadowUF.isForever ) then
+			frame:HookScript("OnShow", function() Units:UpdateForeverZoneHeaderSize(headerFrame) end)
+			frame:HookScript("OnHide", function() Units:UpdateForeverZoneHeaderSize(headerFrame) end)
+		elseif( type == "arena" ) then
 			-- Class comes from the opponent spec, which stays readable when unit identity is secret
 			frame.UnitClassToken = ArenaClassToken
 
@@ -1431,7 +1574,9 @@ function Units:LoadZoneHeader(type)
 		RegisterUnitWatch(frame, frame.hasStateWatch)
 	end
 
-	-- Dynamic height/width adjustment
+	-- Dynamic height/width adjustment on Retail. Forever sizes from normal
+	-- Lua hooks outside combat and lets Blizzard's watch control boss buttons.
+	if( not ShadowUF.isForever ) then
 	stateMonitor:WrapScript(headerFrame, "OnAttributeChanged", [[
 		if( name ~= "childchanged" ) then return end
 
@@ -1456,7 +1601,7 @@ function Units:LoadZoneHeader(type)
 		self:SetHeight(yMod * ((child:GetHeight() * (visible - 1)) + (offset * (visible - 1))) + child:GetHeight())
 		self:Show()
 	]])
-
+	end
 
 	self:SetHeaderAttributes(headerFrame, type)
 	ShadowUF.Layout:AnchorFrame(UIParent, headerFrame, ShadowUF.db.profile.positions[type])
@@ -1549,6 +1694,16 @@ function Units:UninitializeFrame(type)
 	end
 
 	-- Disable the parent and the children will follow
+	if( ShadowUF.isForever ) then
+		if( type == "raid" ) then
+			disableForeverHeaderVisibility(headerFrames.raid)
+			for _, header in pairs(headerFrames) do
+				if( header.splitParent == "raid" ) then disableForeverHeaderVisibility(header) end
+			end
+		elseif( type == "party" ) then
+			disableForeverHeaderVisibility(headerFrames.party)
+		end
+	end
 	if( ShadowUF.db.profile.units[type].frameSplit ) then
 		for _, headerFrame in pairs(headerFrames) do
 			if( headerFrame.splitParent == type ) then
@@ -1931,6 +2086,12 @@ centralFrame:SetScript("OnEvent", function(self, event, unit, ...)
 
 	-- This is slightly hackish, but it suits the purpose just fine for somthing thats rarely called.
 	elseif( event == "PLAYER_REGEN_ENABLED" ) then
+		if( ShadowUF.isForever ) then
+			for _, header in pairs(headerFrames) do
+				initializeForeverHeaderChildren(header)
+				if( header.children ) then Units:UpdateForeverZoneHeaderSize(header) end
+			end
+		end
 		-- Now do all of the creation for child wrapping
 		for _, queue in pairs(queuedCombat) do
 			Units:LoadChildUnit(queue.parent, queue.type, queue.id)
