@@ -35,7 +35,7 @@ ZIP SHA256: `9f40dfa6044d02cf6cb451f9db6644ec7d0c9d5e3f66b48a1cc42c4e7e633086`
 | Profiles and options | Unsupported controls are hidden on Forever. Imported Retail profiles cannot reactivate unsupported units; anchors to those units fall back to the screen without rewriting saved positions. |
 | Retail | The original Retail implementations and saved settings remain available when running on Retail. |
 
-The RC6 group-header change addresses the reported `RestrictedExecution.lua:79` error reached while creating the party header. See [technical notes](FOREVER.md) for more detail.
+The [technical notes](FOREVER.md) document the reported errors and implementation across RC1–RC6, including the RC6 fix for `RestrictedExecution.lua:79` during party-header creation.
 
 ## Features currently disabled on Forever
 
