@@ -321,7 +321,9 @@ end
 local function SetVisibility(self)
 	local layoutUpdate
 	local instanceType = select(2, IsInInstance()) or "none"
-	local playerSpec = GetSpecialization()
+	-- Forever does not expose usable retail specializations; its client can
+	-- error inside GetSpecialization() even when the function exists.
+	local playerSpec = not ShadowUF.isForever and GetSpecialization()
 	if( instanceType == "scenario" ) then instanceType = "party" end
 	if( instanceType == "interior" ) then instanceType = "neighborhood" end
 
