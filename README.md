@@ -48,4 +48,4 @@ Include the RC version, Forever build/interface number, the full Lua error and s
 
 ## Source and attribution
 
-This is an unofficial Forever port of [NoSelph's SUF project](https://github.com/NoSelph/ShadowedUnitFrames). The compatibility code is proposed in [upstream draft PR #151](https://github.com/NoSelph/ShadowedUnitFrames/pull/151). This fork's release README, issue template, technical notes, and packaging script live on the fork-only release branch.
+This is an unofficial Forever port of [NoSelph's SUF project](https://github.com/NoSelph/ShadowedUnitFrames). The compatibility code is proposed in [upstream draft PR #151](https://github.com/NoSelph/ShadowedUnitFrames/pull/151). This fork's release README, issue template, technical notes, and packaging script live on the fork-only release branch. For upstream code contributions, use the code-only `forever` branch as the pull-request head; the default `forever-release` branch also contains fork-owned release files.
