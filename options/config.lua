@@ -101,7 +101,6 @@ local unitCategories = {
 }
 if( ShadowUF.isForever ) then
 	unitCategories.arena = nil
-	unitCategories.battleground = nil
 end
 
 local UNIT_DESC = {
