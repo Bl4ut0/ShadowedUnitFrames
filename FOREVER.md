@@ -1,6 +1,6 @@
 # WoW Forever port: technical notes
 
-This is the cumulative technical record for the Forever port of Shadowed Unit Frames, from **RC1 through RC6**. RC6 is built from NoSelph's packaged v4.6.7 release and includes every earlier Forever change; users install RC6 alone. The [README](README.md) covers installation and the user-facing feature list. This page records the reported problems, their causes, the implementation, and what still needs testing.
+This is the cumulative technical record for the Forever port of Shadowed Unit Frames, from **RC1 through RC7**. RC7 is built from NoSelph's packaged v4.6.7 release and includes every earlier Forever change; users install RC7 alone. The [README](README.md) covers installation and the user-facing feature list. This page records the reported problems, their causes, the implementation, and what still needs testing.
 
 The upstream [Forever support request #150](https://github.com/NoSelph/ShadowedUnitFrames/issues/150) asks for a port and for profile import/export between Retail and Forever. The errors below came from the test chat; they were **not filed as numbered GitHub issues**. Commit links identify the corresponding code changes.
 
@@ -14,6 +14,7 @@ The upstream [Forever support request #150](https://github.com/NoSelph/ShadowedU
 | [RC4](https://github.com/Bl4ut0/ShadowedUnitFrames/commit/3dffba0) | Compatibility audit found a `GetSpecialization()` path that can fail on Forever. No separate user stack was retained for this candidate. | Avoided the Retail specialization call in Forever visibility logic. |
 | [RC5](https://github.com/Bl4ut0/ShadowedUnitFrames/commit/ea751a3) | Broader audit of Retail-only assumptions, prompted by the repeated test failures. This was a preventive pass, not a single reported stack. | Gated unsupported frames, widgets, indicators, events, and options; added Classic combo-point and loot handling; protected imported profiles. |
 | [RC6](https://github.com/Bl4ut0/ShadowedUnitFrames/commit/73c0283) | A second `RestrictedExecution.lua:79` error, this time through `RegisterStateDriver` at `Units:LoadGroupHeader` while creating the party header on Sep 23. | Removed the remaining SUF-authored restricted snippets from Forever group and boss frame paths while retaining those frames. |
+| [RC7](https://github.com/Bl4ut0/ShadowedUnitFrames/commit/6b4f386) | Review found the RC5 gate also hid Battleground flag-carrier frames. | Restored the Battleground category and unit frames using Forever's `arenaN` tokens. Arena match frames remain gated. In-game frame updates and overlap with Blizzard UI are pending validation. |
 
 RC3 and RC4 were intermediate revisions folded into later packages; they do not have separate GitHub release pages. The table describes the development sequence, not six packages that must be installed in order.
 
@@ -43,15 +44,16 @@ The RC3 nil-frame error came from SUF assuming every Retail Blizzard frame globa
 
 [`ShadowUF.foreverUnsupported`](ShadowedUnitFrames.lua) is the central RC5 gate:
 
-| Disabled on Forever | Effect |
+| Feature status on Forever | Effect |
 | --- | --- |
-| Dedicated arena and battleground opponent units, including pet, target, and target-of-target variants | SUF does not create or offer these opponent frames. Normal player, target, party, and raid frames still load in PvP. |
+| Arena opponent units, including pet, target, and target-of-target variants | SUF does not create or offer Arena match frames; their Retail opponent/spec event setup remains gated. |
+| Battleground opponent units, including pet, target, and target-of-target variants | RC7 offers these frames and options. The Forever client uses `arenaN` unit tokens for Battleground flag carriers; live update behavior still needs testing. |
 | Alternate power and Retail class bars: arcane charges, chi, essence, holy power, priest/shaman secondary mana, DK runes, soul shards, stagger | These SUF widgets are not registered. Classic combo points, shaman totems, and the druid mana bar remain. |
 | Arena spec, dungeon role, pet battle, phase, and quest-boss indicators | The unsupported indicators are not enabled or offered in Forever options. |
 | Vehicle switching and pet-battle wrapper | SUF does not swap unit frames to vehicle units or run the Retail pet-battle hide driver on Forever. |
 | Empowered-cast and phase events; Retail-only resource tags | Their event subscriptions and tag choices are omitted where the client paths do not apply. Ordinary cast bars and other tags remain. |
 
-This list describes **SUF compatibility gates**; it does not establish whether Forever has an equivalent game mechanic. RC5 applies the gates at module registration, unit loading, unlock/test mode, and options construction. An imported Retail profile cannot re-enable unsupported unit frames through its saved visibility settings. If an active frame was anchored to a now-disabled frame, the layout uses `UIParent` as the runtime anchor without rewriting the saved position. Options omit unsupported controls. See [units](modules/units.lua), [layout](modules/layout.lua), [movers](modules/movers.lua), and [options](options/config.lua).
+This list describes **SUF compatibility gates**; it does not establish whether Forever has an equivalent game mechanic. RC5 added the shared gates at module registration, unit loading, unlock/test mode, and options construction; RC7 selectively restores Battleground frames. An imported Retail profile cannot re-enable unsupported unit frames through its saved visibility settings. If an active frame was anchored to a now-disabled frame, the layout uses `UIParent` as the runtime anchor without rewriting the saved position. Options omit unsupported controls. See [units](modules/units.lua), [layout](modules/layout.lua), [movers](modules/movers.lua), and [options](options/config.lua).
 
 RC5 also avoids the Retail `CanHearthAndResurrectFromArea` assumption in zone logic, skips Forever subscriptions to `UNIT_PHASE` and arena-opponent events, and does not register empowered-cast events. RC4 specifically guarded `GetSpecialization()` in unit visibility. The original Retail behavior remains available when the same code runs on Retail.
 
@@ -85,22 +87,22 @@ The audit then covered the other SUF snippets reachable on Forever: raid and spl
 - Boss buttons use `RegisterUnitWatch(button, false)` for direct existence-based show/hide. Normal `OnShow`/`OnHide` hooks update their containing header's size outside combat, with a retry after combat.
 - Group children remain secure unit buttons. Forever registers them through SUF's normal `ClickCastFrames` path; the Retail `ClickCastHeader` snippet path remains on Retail. Custom Clique bindings on group buttons need an in-game check.
 
-The dedicated arena and battleground opponent frames are gated off on Forever, so their Retail-only secure wrappers are not reached. RC6 did not remove party, raid, raid-pet, or boss frames.
+Arena opponent frames remain gated off on Forever, so their Retail-only secure wrappers are not reached. RC7 restores Battleground frames and options. Party, raid, raid-pet, and boss frames remain available through the RC6 paths.
 
 ## Validation status and remaining checks
 
-All 40 addon Lua files parsed for RC6. The packaged RC6 ZIP was checked against the source, and all 173 installed files matched that ZIP. These checks establish syntax and package consistency; they do **not** establish that the frames work in every game state.
+All 40 addon Lua files parse for RC7. The packaged RC7 ZIP is checked against the source, and all 173 installed files match that ZIP. These checks establish syntax and package consistency; they do **not** establish that the frames work in every game state.
 
-In-game validation remains for party-to-raid changes, split-raid layouts, raid pets, boss visibility and sizing, frame clicks and Clique bindings, and roster changes during combat. A newly created group child may finish SUF initialization after combat; boss header bounds may also catch up then. Test a clean profile and an imported Retail profile. If `RestrictedExecution.lua:79` appears again, report the **full new stack** because its SUF caller may differ from the RC3 and RC6 reports.
+In-game validation remains for Battleground flag-carrier updates and possible overlap with Blizzard's flag-carrier UI; party-to-raid changes, split-raid layouts, raid pets, boss visibility and sizing, frame clicks and Clique bindings, and roster changes during combat. A newly created group child may finish SUF initialization after combat; boss header bounds may also catch up then. Test a clean profile and an imported Retail profile. If `RestrictedExecution.lua:79` appears again, report the **full new stack** because its SUF caller may differ from the RC3 and RC6 reports.
 
 ## Release, source branches, and bug reports
 
-Use the attached [RC6 release ZIP](https://github.com/Bl4ut0/ShadowedUnitFrames/releases/tag/v4.6.7-Forever-RC6), which contains both addon directories and bundled libraries. GitHub's generated source ZIP lacks the bundled libraries. The fork's `forever-release` branch holds this documentation, the README, issue template, and packaging script. The [upstream draft PR #151](https://github.com/NoSelph/ShadowedUnitFrames/pull/151) uses the code-only `forever` branch so fork-specific release files are not included upstream.
+Use the attached [RC7 release ZIP](https://github.com/Bl4ut0/ShadowedUnitFrames/releases/tag/v4.6.7-Forever-RC7), which contains both addon directories and bundled libraries. GitHub's generated source ZIP lacks the bundled libraries. The fork's `forever-release` branch holds this documentation, the README, issue template, and packaging script. The [upstream PR #151](https://github.com/NoSelph/ShadowedUnitFrames/pull/151) uses the code-only `forever` branch so fork-specific release files are not included upstream.
 
 [Report a Forever bug in this fork](https://github.com/Bl4ut0/ShadowedUnitFrames/issues/new?template=bug_report.md). Include the RC version, client build/interface, full Lua stack, steps to reproduce, affected frame, combat state, profile origin, and other enabled addons. Link a new report to [upstream issue #150](https://github.com/NoSelph/ShadowedUnitFrames/issues/150) only when it concerns the broader support or profile question; use this fork's tracker for RC defects.
 
 To build a new candidate from the release branch, start with NoSelph's packaged v4.6.7 ZIP:
 
 ```powershell
-./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC6.zip
+./scripts/package-forever.ps1 -BaseArchive ./v4.6.7-midnight.zip -OutputArchive ./v4.6.7-Forever-RC7.zip
 ```
