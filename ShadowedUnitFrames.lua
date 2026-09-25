@@ -15,8 +15,9 @@ ShadowUF.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
 -- Forever uses the modern UI API but not these Retail game systems. Keep their
 -- saved settings and Retail implementations intact; do not activate them here.
 ShadowUF.foreverUnsupported = {
-	units = {arena = true, arenapet = true, arenatarget = true, arenatargettarget = true,
-		battleground = true, battlegroundpet = true, battlegroundtarget = true, battlegroundtargettarget = true},
+	-- Blizzard's battleground flag-carrier UI uses arenaN unit tokens; keep
+	-- SUF's battleground frames available while arena matches stay gated.
+	units = {arena = true, arenapet = true, arenatarget = true, arenatargettarget = true},
 	modules = {altPowerBar = true, arcaneCharges = true, chi = true, essence = true,
 		holyPower = true, priestBar = true, runeBar = true, shamanBar = true,
 		soulShards = true, staggerBar = true},
