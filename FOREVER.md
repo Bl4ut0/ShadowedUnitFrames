@@ -91,7 +91,7 @@ Arena opponent frames remain gated off on Forever, so their Retail-only secure w
 
 ## Validation status and remaining checks
 
-All 40 addon Lua files parse for RC7. The packaged RC7 ZIP is checked against the source, and all 173 installed files match that ZIP. These checks establish syntax and package consistency; they do **not** establish that the frames work in every game state.
+All 50 tracked addon Lua files parse for RC7. The packaged RC7 ZIP is checked against the source, and all 173 installed files match that ZIP. These checks establish syntax and package consistency; they do **not** establish that the frames work in every game state.
 
 In-game validation remains for Battleground flag-carrier updates and possible overlap with Blizzard's flag-carrier UI; party-to-raid changes, split-raid layouts, raid pets, boss visibility and sizing, frame clicks and Clique bindings, and roster changes during combat. A newly created group child may finish SUF initialization after combat; boss header bounds may also catch up then. Test a clean profile and an imported Retail profile. If `RestrictedExecution.lua:79` appears again, report the **full new stack** because its SUF caller may differ from the RC3 and RC6 reports.
 

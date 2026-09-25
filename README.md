@@ -53,7 +53,7 @@ The main remaining frame omission is Arena opponents. The alternate encounter po
 
 ## RC7 test status
 
-All 40 addon Lua files parse, and the RC7 ZIP is checked against the installed files. Live Battleground opponent updates and possible overlap with Blizzard's flag-carrier UI still need a match test. Party and raid formation, raid pets, boss visibility, custom click-casts, combat transitions, and imported profiles also need in-game validation. On Forever, group buttons use SUF's normal click-cast registration instead of its restricted header snippet. Boss header dimensions may update after combat when boss visibility changes during combat.
+All 50 tracked addon Lua files parse, and the RC7 ZIP is checked against the installed files. Live Battleground opponent updates and possible overlap with Blizzard's flag-carrier UI still need a match test. Party and raid formation, raid pets, boss visibility, custom click-casts, combat transitions, and imported profiles also need in-game validation. On Forever, group buttons use SUF's normal click-cast registration instead of its restricted header snippet. Boss header dimensions may update after combat when boss visibility changes during combat.
 
 ## Report a bug
 
